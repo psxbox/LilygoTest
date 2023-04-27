@@ -1,0 +1,33 @@
+﻿@page "/device_view/{Mac}"
+@using LilyGoTestBLE.Data;
+@using Plugin.BLE.Abstractions.Contracts;
+@using Plugin.BLE.Abstractions;
+@inject BLEService BLEService
+
+<h4 class="h4">DeviceView</h4>
+<div class="@GetClass" role="alert">@device.State</div>
+<p>@device.Rssi</p>
+<p>@device.Name</p>
+<p>@device.NativeDevice</p>
+
+@code {
+    [Parameter]
+    public string Mac { get; set; }
+
+    private IDevice device;
+
+    private string GetClass => device.State switch
+    {
+        DeviceState.Disconnected => "alert alert-danger",
+        DeviceState.Connecting => "alert alert-warning",
+        DeviceState.Connected => "alert alert-success",
+        _ => "alert alert-dark"
+    };
+
+    protected override Task OnInitializedAsync()
+    {
+        device = BLEService[Mac];
+
+        return base.OnInitializedAsync();
+    }
+}

@@ -1,0 +1,114 @@
+﻿@page "/"
+@using LilyGoTestBLE.Data;
+@using Plugin.BLE.Abstractions.Contracts;
+@using Plugin.BLE;
+
+@inject BLEService BLEService
+@inject NavigationManager NavMan
+
+<h4 class="h4">BLE qurilmalar</h4>
+
+<div class="pb-2">
+    <button class="btn btn-primary" @onclick="ScanClick" disabled="@(!scanButtonEnabled)">Qidirish</button>
+</div>
+@if (BLEService.Devices.Count == 0)
+{
+    <div class="alert alert-info" role="alert">@status</div>
+}
+else
+{
+    <table class="table table-responsive">
+        <thead>
+            <tr class="align-middle">
+                <th>
+                    RSSI
+                </th>
+                <th>
+                    Qurilma nomi
+                </th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var device in BLEService.Devices)
+            {
+                <tr class="align-middle">
+                    <td>
+                        @device.Rssi
+                    </td>
+                    <td>
+                        @if (string.IsNullOrWhiteSpace(device.Name))
+                        {
+                            <span>Nomalum</span>
+                        }
+                        else
+                        {
+                            <span>@device.Name</span>
+                        }
+                        <br>
+                        <small class="text-muted">@device.NativeDevice</small>
+                    </td>
+                    <td class="text-end">
+                        <button class="btn btn-primary" @onclick="() => DeviceViewClick(device)">
+                            <span class="oi oi-eye" aria-hidden="true"></span>
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+        <tfoot>
+            <tr>
+                <td>
+                    Soni:
+                </td>
+                <td>
+                    @BLEService.Devices.Count
+                </td>
+                <td></td>
+            </tr>
+        </tfoot>
+    </table>
+
+
+}
+
+
+@code {
+    private bool scanButtonEnabled = true;
+    private string status = "Qurilmalarni skanerlash uchun [Qidirish] tugmani bosing";
+    private string toastTitle = "Error";
+    private string toastSubTitle = "";
+    private string toastMgs = "Error";
+
+    private async Task ScanClick()
+    {
+        status = "Qurilmalar qidirilmoqda...";
+        scanButtonEnabled = false;
+        await BLEService.ScanDevices();
+        scanButtonEnabled = true;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+#if DEBUG
+    Console.WriteLine("Initialize");
+#endif
+        await base.OnInitializedAsync();
+    }
+
+    private async Task DeviceViewClick(IDevice device)
+    {
+        await BLEService.StopScan();
+        try
+        {
+            await BLEService.ConnectToDevice(device);
+        }
+        catch (Exception ex)
+        {
+ 
+            return;
+        }
+        NavMan.NavigateTo($"/device_view/{device.NativeDevice}");
+    }
+
+}

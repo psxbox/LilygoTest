@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:minWidth="25px"
+    android:minHeight="25px"
+    android:id="@+id/linearLayout1"
+    android:padding="10dp">
+    <TableRow
+        android:minWidth="25px"
+        android:minHeight="25px"
+        android:id="@+id/tableRow1"
+        android:layout_height="wrap_content"
+        android:layout_width="match_parent">
+        <TextView
+            android:layout_width="200dp"
+            android:layout_height="wrap_content"
+            android:text="Qurilma nomi"
+            android:textFontWeight="600"
+            android:id="@+id/textView1"/>
+        <EditText
+            android:text="Text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/editDeviceName"
+            android:editable="false"/>
+    </TableRow>
+    <TableRow
+        android:minWidth="25px"
+        android:minHeight="25px"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/tableRow2">
+        <TextView
+            android:text="MAC adres"
+            android:id="@+id/textView2"
+            android:layout_width="200dp"
+            android:layout_height="wrap_content"
+            android:textFontWeight="600" />
+        <EditText
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/editMac"
+            android:editable="false"/>
+    </TableRow>
+    <TableRow
+        android:layout_width="match_parent"
+        android:layout_height="25dp"
+        android:minWidth="25px"
+        android:minHeight="25px">
+    </TableRow>
+    <TableRow
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minWidth="25px"
+        android:minHeight="25px">
+        <TextView
+            android:text="Batareya quvvati"
+            android:layout_width="200dp"
+            android:layout_height="wrap_content"
+            android:textFontWeight="600" />
+        <EditText
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/editBattery"
+            android:editable="false"/>
+    </TableRow>
+</LinearLayout >
