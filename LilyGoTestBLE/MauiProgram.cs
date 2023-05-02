@@ -1,5 +1,6 @@
 ﻿using LilyGoTestBLE.Data;
 using Microsoft.Extensions.Logging;
+using BlazorBootstrap;
 
 namespace LilyGoTestBLE
 {
@@ -22,6 +23,7 @@ namespace LilyGoTestBLE
 		builder.Logging.AddDebug();
 #endif
             builder.Services.AddSingleton<BLEService>();
+            builder.Services.AddBlazorBootstrap();
 
             return builder.Build();
         }

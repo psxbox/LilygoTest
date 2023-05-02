@@ -4,17 +4,89 @@
 @using Plugin.BLE.Abstractions;
 @inject BLEService BLEService
 
-<h4 class="h4">DeviceView</h4>
-<div class="@GetClass" role="alert">@device.State</div>
-<p>@device.Rssi</p>
-<p>@device.Name</p>
-<p>@device.NativeDevice</p>
+@implements IDisposable
+
+<Toasts class="p-3" Messages="messages" Placement="ToastsPlacement.MiddleCenter" AutoHide="true" Delay="5000" />
+
+<div class="@GetClass mb-2 small" role="alert">@GetDeviceName @device.State</div>
+
+<div class="input-group mb-1 w-100">
+    <span class="input-group-text w-50">@device.Name</span>
+    <span class="input-group-text w-50">@device.NativeDevice</span>
+</div>
+<div class="input-group mb-1 w-100">
+    <span class="input-group-text w-25">
+        <Icon CustomIconName="@GetSignalQuaIcon(BLEService.SigQua)" class="me-2"></Icon>
+        @BLEService.SigQua
+    </span>
+    <span class="input-group-text w-25">
+        <Icon CustomIconName="@GetBatteryLevel(BLEService.BatLevel)" class="me-2"></Icon>
+        @(BLEService.BatLevel / 1000m)
+    </span>
+    <span class="input-group-text w-50">
+        <Icon Name="IconName.Moisture" class="me-2"></Icon>
+        @BLEService.SensorLevel
+    </span>
+</div>
+<div class="input-group mb-1 w-100">
+    <button class="btn btn-outline-primary w-25" type="button" @onclick="SelectFile">Firmware</button>
+    <span class="input-group-text w-75">@fileName</span>
+</div>
+
+<div class="input-group mb-1 w-100">
+    <button class="btn btn-outline-primary w-50 small" type="button" @onclick="RequestOtaStatus">Qurilma xolatini tek.</button>
+    <span class="input-group-text w-50 small">@BLEService.DeviceOtaStatus</span>
+</div>
+
+<div class="input-group mb-1 w-100">
+    <button class="btn btn-outline-primary w-50 small" type="button" @onclick="RequestOtaVer">Versiyani aniqlash </button>
+    <span class="input-group-text w-50 small">@BLEService.FwVer</span>
+</div>
+
+<div class="input-group mb-1 w-100">
+    <button class="btn btn-outline-primary w-50 small" type="button"
+            disabled="@UpdateButtonDisabled" @onclick="PrepareFirmware">
+        Proshivkaga tayyorlash
+    </button>
+    <span class="input-group-text w-50 small">@($"{BLEService.OtaStatus}")</span>
+</div>
+<div class="input-group mb-1 w-100">
+    <button class="btn btn-outline-primary w-25" type="button" disabled="@StartButtonDisabled"
+        @onclick="SendFlash">Start</button>
+    <button class="btn btn-outline-warning w-25" type="button" disabled="@AbortButtonDisabled"
+        @onclick="OtaAbort">Abort</button>
+    <span class="input-group-text w-50 small">@BLEService.OtaProgressStr</span>
+</div>
+<div class="progress w-100 mb-2">
+    <div class="progress-bar" role="progressbar" style="width: @BLEService.OtaProgress%;"
+         aria-valuenow=@BLEService.OtaProgress aria-valuemin="0" aria-valuemax="100">
+        @BLEService.OtaProgress
+    </div>
+</div>
+
+
+<div class="overflow-auto border border-1" style="height: 40vh">
+    @foreach (var item in BLEService.Logs.Reverse())
+    {
+        <small>@item</small>
+        <br />
+    }
+</div>
+
+
 
 @code {
     [Parameter]
     public string Mac { get; set; }
 
+    List<ToastMessage> messages = new List<ToastMessage>();
+
     private IDevice device;
+
+    private string fileName;
+    private string fullPath = string.Empty;
+
+    private string GetDeviceName => string.IsNullOrWhiteSpace(device.Name) ? device.NativeDevice.ToString() : device.Name;
 
     private string GetClass => device.State switch
     {
@@ -24,10 +96,176 @@
         _ => "alert alert-dark"
     };
 
-    protected override Task OnInitializedAsync()
+    private bool UpdateButtonDisabled => device.State != DeviceState.Connected
+        || BLEService.OtaStatus != OtaStatus.IDLE || string.IsNullOrEmpty(fileName);
+
+    private bool StartButtonDisabled => device.State != DeviceState.Connected
+        || BLEService.OtaStatus != OtaStatus.READY_FOR_FLASH || string.IsNullOrEmpty(fileName);
+
+    private bool AbortButtonDisabled => device.State != DeviceState.Connected
+        || BLEService.OtaStatus == OtaStatus.IDLE || string.IsNullOrEmpty(fileName);
+
+    private string GetSignalQuaIcon(byte sig)
+    {
+        return sig switch
+        {
+            99 or 0 => "bi-reception-0",
+            > 0 and <= 9 => "bi-reception-1",
+            > 9 and <= 16 => "bi-reception-2",
+            > 16 and <= 24 => "bi-reception-3",
+            > 24 and <= 31 => "bi-reception-3",
+            _ => "bi-reception-0"
+        };
+    }
+
+    private async void PrepareFirmware()
+    {
+        try
+        {
+            var len = new FileInfo(fullPath).Length;
+            await BLEService.RequestOtaFlash(len);
+        }
+        catch (Exception ex)
+        {
+            messages.Add(new ToastMessage
+                {
+                    Type = ToastType.Danger,
+                    Title = "Xatolik",
+                    HelpText = $"{DateTime.Now}",
+                    Message = $"Xatolik: {ex.Message}"
+                });
+        }
+
+    }
+
+    private async void OtaAbort()
+    {
+        try
+        {
+            await BLEService.RequestOtaAbort();
+        }
+        catch (Exception ex)
+        {
+            messages.Add(new ToastMessage
+                {
+                    Type = ToastType.Danger,
+                    Title = "Xatolik",
+                    HelpText = $"{DateTime.Now}",
+                    Message = $"Xatolik: {ex.Message}"
+                });
+        }
+
+    }
+
+    private async void RequestOtaStatus()
+    {
+        try
+        {
+            await BLEService.RequestOtaStatus();
+        }
+        catch (Exception ex)
+        {
+            messages.Add(new ToastMessage
+                {
+                    Type = ToastType.Danger,
+                    Title = "Xatolik",
+                    HelpText = $"{DateTime.Now}",
+                    Message = $"Xatolik: {ex.Message}"
+                });
+        }
+
+    }
+
+    private async void RequestOtaVer()
+    {
+        try
+        {
+            await BLEService.RequestOtaVer();
+        }
+        catch (Exception ex)
+        {
+            messages.Add(new ToastMessage
+                {
+                    Type = ToastType.Danger,
+                    Title = "Xatolik",
+                    HelpText = $"{DateTime.Now}",
+                    Message = $"Xatolik: {ex.Message}"
+                });
+        }
+
+    }
+
+    private async void SendFlash()
+    {
+        try
+        {
+            await BLEService.SendFlash(fullPath);
+        }
+        catch (Exception ex)
+        {
+            messages.Add(new ToastMessage
+                {
+                    Type = ToastType.Danger,
+                    Title = "Flashing Error",
+                    HelpText = $"{DateTime.Now}",
+                    Message = $"Error: {ex.Message}"
+                });
+        }
+
+    }
+
+    private string GetBatteryLevel(ushort mv)
+    {
+        return mv switch
+        {
+            >= 3900 => "bi-battery-full",
+            >= 3300 and < 3900 => "bi-battery-half",
+            _ => "bi-battery"
+        };
+    }
+
+    private async void SelectFile()
+    {
+        fullPath = await FileUtils.GetFilePathAsync();
+        fileName = Path.GetFileName(fullPath);
+#if DEBUG
+    Console.WriteLine(fullPath);
+#endif
+        StateHasChanged();
+    }
+
+    protected override async Task OnInitializedAsync()
     {
         device = BLEService[Mac];
 
-        return base.OnInitializedAsync();
+        BLEService.OnValueChanged += OnValueChanged;
+
+        try
+        {
+            await BLEService.Subscribe(device);
+        }
+        catch (Exception ex)
+        {
+            messages.Add(new ToastMessage
+                {
+                    Type = ToastType.Danger,
+                    Title = "Qurilma bilan aloqada xatolik",
+                    HelpText = $"{DateTime.Now}",
+                    Message = $"Xatolik: {ex.Message}"
+                });
+        }
+        await base.OnInitializedAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async void OnValueChanged()
+    {
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async void Dispose()
+    {
+        BLEService.OnValueChanged -= OnValueChanged;
+        await BLEService.DisconnectDevice(device);
     }
 }

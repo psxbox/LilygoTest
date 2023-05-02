@@ -8,8 +8,12 @@
 
 <h4 class="h4">BLE qurilmalar</h4>
 
+<Toasts class="p-3" Messages="messages" Placement="ToastsPlacement.MiddleCenter" AutoHide="true" Delay="5000" />
+
 <div class="pb-2">
-    <button class="btn btn-primary" @onclick="ScanClick" disabled="@(!scanButtonEnabled)">Qidirish</button>
+    <Button Color="ButtonColor.Primary" @onclick="ScanDevices" disabled="@(!scanButtonEnabled)">
+        <Icon Name="IconName.Search"></Icon> Qidirish
+    </Button>
 </div>
 @if (BLEService.Devices.Count == 0)
 {
@@ -17,7 +21,7 @@
 }
 else
 {
-    <table class="table table-responsive">
+    <table class="table table-responsive table-bordered table-striped">
         <thead>
             <tr class="align-middle">
                 <th>
@@ -34,7 +38,7 @@ else
             {
                 <tr class="align-middle">
                     <td>
-                        @device.Rssi
+                        @device.Rssi dB
                     </td>
                     <td>
                         @if (string.IsNullOrWhiteSpace(device.Name))
@@ -49,9 +53,9 @@ else
                         <small class="text-muted">@device.NativeDevice</small>
                     </td>
                     <td class="text-end">
-                        <button class="btn btn-primary" @onclick="() => DeviceViewClick(device)">
-                            <span class="oi oi-eye" aria-hidden="true"></span>
-                        </button>
+                        <Button Color="ButtonColor.Secondary" @onclick="() => DeviceViewClick(device)">
+                            <Icon Name="IconName.Eye"></Icon>
+                        </Button>
                     </td>
                 </tr>
             }
@@ -76,11 +80,13 @@ else
 @code {
     private bool scanButtonEnabled = true;
     private string status = "Qurilmalarni skanerlash uchun [Qidirish] tugmani bosing";
-    private string toastTitle = "Error";
-    private string toastSubTitle = "";
-    private string toastMgs = "Error";
+    //private string toastTitle = "Error";
+    //private string toastSubTitle = "";
+    //private string toastMgs = "Error";
 
-    private async Task ScanClick()
+    List<ToastMessage> messages = new List<ToastMessage>();
+
+    private async Task ScanDevices()
     {
         status = "Qurilmalar qidirilmoqda...";
         scanButtonEnabled = false;
@@ -90,9 +96,34 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        var locationPerm = await BLEService.CheckAndRequestLocationPermission();
+        if (locationPerm != PermissionStatus.Granted)
+        {
+            messages.Add(new ToastMessage
+                {
+                    Type = ToastType.Warning,
+                    Title = "Joylashuvni bilishga ruxsat yo'q",
+                    HelpText = $"{DateTime.Now}",
+                    Message = "Bluetooth dan foydalanish uchun joylashuvni bilishga ruxsat bo'lishi kerak!"
+                });
+        }
+
+        var storagePerm = await BLEService.CheckAndRequestStoragePermission();
+        if (storagePerm != PermissionStatus.Granted)
+        {
+            messages.Add(new ToastMessage
+                {
+                    Type = ToastType.Warning,
+                    Title = "Xotiraga ruxsat yo'q",
+                    HelpText = $"{DateTime.Now}",
+                    Message = "Proshivka qilish uchun xotiraga ruxsat bo'lishi kerak!"
+                });
+        }
+
 #if DEBUG
     Console.WriteLine("Initialize");
 #endif
+        await ScanDevices();
         await base.OnInitializedAsync();
     }
 
@@ -105,7 +136,13 @@ else
         }
         catch (Exception ex)
         {
- 
+            messages.Add(new ToastMessage
+                {
+                    Type = ToastType.Danger,
+                    Title = "Error",
+                    HelpText = $"{DateTime.Now}",
+                    Message = ex.Message
+                });
             return;
         }
         NavMan.NavigateTo($"/device_view/{device.NativeDevice}");
